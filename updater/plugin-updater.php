@@ -75,17 +75,28 @@ if (!class_exists('FWCH_Plugin_Updater')) {
         }
 
         /**
-         * Después de la instalación, limpiar y renombrar la carpeta
+         * Handle post-installation cleanup and folder renaming
+         * Fixes GitHub ZIP structure issue where files are wrapped in extra folder
          */
         public function after_install($true, $hook_extra, $result) {
             global $wp_filesystem;
 
             $plugin_folder = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . dirname($this->plugin_slug);
-            $wp_filesystem->move($result['destination'], $plugin_folder);
-            $result['destination'] = $plugin_folder;
-
-            if (isset($result['destination_name'])) {
-                $result['destination_name'] = dirname($this->plugin_slug);
+            
+            // GitHub creates folders with suffixes like "repo-name-main"
+            // We need to find and rename them properly
+            if (isset($result['destination'])) {
+                // Check if destination folder exists and has the correct structure
+                if ($wp_filesystem->exists($result['destination'])) {
+                    // Move the contents to the correct plugin folder name
+                    $wp_filesystem->move($result['destination'], $plugin_folder);
+                    $result['destination'] = $plugin_folder;
+                    
+                    // Update destination name for WordPress
+                    if (isset($result['destination_name'])) {
+                        $result['destination_name'] = dirname($this->plugin_slug);
+                    }
+                }
             }
 
             return $result;
