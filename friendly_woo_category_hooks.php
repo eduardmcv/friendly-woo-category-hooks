@@ -2,12 +2,27 @@
 /**
  * Plugin Name: Friendly Woo Category Hooks
  * Description: Simplifica la creación de hooks para categorías de productos en WooCommerce. 
- * Version: 2.5.3
+ * Version: 2.6.0
  * Author: Eduard
  * Text Domain: woo-category-hooks
+ * GitHub Plugin URI: eduardmcv/friendly-woo-category-hooks
  */
 
 if (!defined('ABSPATH')) exit;
+
+// Definir constantes del plugin
+define('FWCH_VERSION', '2.6.0');
+define('FWCH_PLUGIN_FILE', __FILE__);
+define('FWCH_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('FWCH_PLUGIN_URL', plugin_dir_url(__FILE__));
+
+// Incluir el updater
+require_once FWCH_PLUGIN_DIR . 'updater/plugin-updater.php';
+
+// Inicializar el updater
+if (is_admin()) {
+    new FWCH_Plugin_Updater(FWCH_PLUGIN_FILE, 'eduardmcv', 'friendly-woo-category-hooks');
+}
 
 // 1. Registrar el CPT
 function wch_register_cpt() {
@@ -62,6 +77,7 @@ function wch_render_meta_box($post) {
     </p>
     <?php
 }
+
 // Guardar los metadatos del hook
 function wch_save_meta($post_id) {
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
@@ -151,7 +167,6 @@ function wch_set_auto_title($post_id, $post, $update) {
     }
 }
 
-
 add_filter('post_row_actions', 'wch_add_view_category_link', 10, 2);
 function wch_add_view_category_link($actions, $post) {
     // Solo para nuestro CPT
@@ -172,7 +187,6 @@ function wch_add_view_category_link($actions, $post) {
     return $actions;
 }
 
-
 add_action('admin_notices', 'wch_notice_alternativo');
 function wch_notice_alternativo() {
     global $post;
@@ -180,10 +194,9 @@ function wch_notice_alternativo() {
 
 echo '<div class="notice notice-warning" style="border-left-color: #dc3545 !important; font-size: 16px !important;">
     <p>
-        <strong>Friendly Woo Category Hooks:</strong> Con el objetivo de mantener un orden claro, el título del hook se renombrará automáticamente a <strong>“Posición - Categoría”</strong> cuando guardes.
+        <strong>Friendly Woo Category Hooks:</strong> Con el objetivo de mantener un orden claro, el título del hook se renombrará automáticamente a <strong>"Posición - Categoría"</strong> cuando guardes.
         <br><br>
         <strong>Importante:</strong> El título no se generará si dejas el campo vacío. Introduce cualquier texto antes de guardar por primera vez. (En ocasiones, puede que necesites guardar dos veces para que se actualice correctamente).
     </p>
 </div>';
-
 }
