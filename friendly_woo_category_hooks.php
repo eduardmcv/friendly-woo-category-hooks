@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Friendly Woo Category Hooks
  * Description: Simplifica la creación de hooks para categorías de productos en WooCommerce. 
- * Version: 2.6.1
+ * Version: 2.6.4
  * Author: Eduard
  * Text Domain: woo-category-hooks
  * GitHub Plugin URI: eduardmcv/friendly-woo-category-hooks
@@ -11,7 +11,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Definir constantes del plugin
-define('FWCH_VERSION', '2.6.1');
+define('FWCH_VERSION', '2.6.4');
 define('FWCH_PLUGIN_FILE', __FILE__);
 define('FWCH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FWCH_PLUGIN_URL', plugin_dir_url(__FILE__));

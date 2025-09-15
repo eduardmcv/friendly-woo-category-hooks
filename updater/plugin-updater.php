@@ -17,41 +17,48 @@ if (!class_exists('FWCH_Plugin_Updater')) {
             $this->github_repo = $github_repo;
             $this->plugin_slug = plugin_basename($plugin_file);
 
-            // Obtener versión del plugin
+            // Obtener versión local
             $plugin_data = get_plugin_data($plugin_file);
             $this->version = $plugin_data['Version'];
 
-            add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_update'));
-            add_filter('plugins_api', array($this, 'plugin_info'), 10, 3);
-            add_filter('upgrader_post_install', array($this, 'after_install'), 10, 3);
+            add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_update']);
+            add_filter('plugins_api', [$this, 'plugin_info'], 10, 3);
+            add_filter('upgrader_post_install', [$this, 'after_install'], 10, 3);
         }
 
         /**
-         * Verificar si hay actualizaciones disponibles
+         * Verificar si hay una actualización disponible
          */
         public function check_for_update($transient) {
             if (empty($transient->checked)) {
                 return $transient;
             }
 
-            // Obtener información del repositorio
             $this->get_github_info();
 
-            if (version_compare($this->version, $this->github_response['tag_name'], '<')) {
-                $transient->response[$this->plugin_slug] = (object) array(
-                    'slug' => dirname($this->plugin_slug),
-                    'plugin' => $this->plugin_slug,
-                    'new_version' => $this->github_response['tag_name'],
-                    'url' => $this->github_response['html_url'],
-                    'package' => $this->github_response['zipball_url']
-                );
+            if (!$this->github_response) {
+                return $transient;
+            }
+
+            $remote_version = ltrim($this->github_response['tag_name'], 'v');
+
+            if (version_compare($this->version, $remote_version, '<')) {
+                $download_url = $this->get_download_url();
+
+                $transient->response[$this->plugin_slug] = (object) [
+                    'slug'        => dirname($this->plugin_slug),
+                    'plugin'      => $this->plugin_slug,
+                    'new_version' => $remote_version,
+                    'url'         => $this->github_response['html_url'],
+                    'package'     => $download_url,
+                ];
             }
 
             return $transient;
         }
 
         /**
-         * Obtener información del plugin para mostrar en el popup
+         * Info para el popup de detalles
          */
         public function plugin_info($false, $action, $response) {
             if (!isset($response->slug) || $response->slug != dirname($this->plugin_slug)) {
@@ -60,23 +67,29 @@ if (!class_exists('FWCH_Plugin_Updater')) {
 
             $this->get_github_info();
 
-            return (object) array(
-                'slug' => dirname($this->plugin_slug),
-                'plugin_name' => dirname($this->plugin_slug),
-                'version' => $this->github_response['tag_name'],
-                'author' => $this->github_response['author']['login'],
-                'homepage' => $this->github_response['html_url'],
-                'download_link' => $this->github_response['zipball_url'],
-                'sections' => array(
-                    'description' => $this->github_response['body'],
-                    'changelog' => 'Ver changelog completo en GitHub'
-                )
-            );
+            if (!$this->github_response) {
+                return $false;
+            }
+
+            $remote_version = ltrim($this->github_response['tag_name'], 'v');
+            $download_url   = $this->get_download_url();
+
+            return (object) [
+                'slug'         => dirname($this->plugin_slug),
+                'plugin_name'  => dirname($this->plugin_slug),
+                'version'      => $remote_version,
+                'author'       => $this->github_response['author']['login'],
+                'homepage'     => $this->github_response['html_url'],
+                'download_link'=> $download_url,
+                'sections'     => [
+                    'description' => $this->github_response['body'] ?: 'No description available.',
+                    'changelog'   => 'See full changelog on GitHub',
+                ],
+            ];
         }
 
         /**
-         * Handle post-installation cleanup and folder renaming
-         * Fixes GitHub ZIP structure issue where files are wrapped in extra folder
+         * Después de la instalación, limpiar y renombrar la carpeta
          */
         public function after_install($true, $hook_extra, $result) {
             global $wp_filesystem;
@@ -103,7 +116,7 @@ if (!class_exists('FWCH_Plugin_Updater')) {
         }
 
         /**
-         * Obtener información del repositorio de GitHub
+         * Llamada a la API de GitHub
          */
         private function get_github_info() {
             if (!empty($this->github_response)) {
@@ -111,24 +124,32 @@ if (!class_exists('FWCH_Plugin_Updater')) {
             }
 
             $request_uri = "https://api.github.com/repos/{$this->github_username}/{$this->github_repo}/releases/latest";
-            
-            $response = wp_remote_get($request_uri, array(
+
+            $response = wp_remote_get($request_uri, [
                 'timeout' => 10,
-                'headers' => array(
+                'headers' => [
                     'Accept' => 'application/vnd.github.v3+json',
-                )
-            ));
+                ]
+            ]);
 
             if (is_wp_error($response)) {
                 return;
             }
 
-            $response_body = wp_remote_retrieve_body($response);
-            $response_code = wp_remote_retrieve_response_code($response);
-
-            if ($response_code === 200) {
-                $this->github_response = json_decode($response_body, true);
+            if (wp_remote_retrieve_response_code($response) === 200) {
+                $this->github_response = json_decode(wp_remote_retrieve_body($response), true);
             }
+        }
+
+        /**
+         * URL de descarga: primero asset, luego fallback
+         */
+        private function get_download_url() {
+            if (!empty($this->github_response['assets'][0]['browser_download_url'])) {
+                return $this->github_response['assets'][0]['browser_download_url'];
+            }
+
+            return $this->github_response['zipball_url'];
         }
     }
 }
